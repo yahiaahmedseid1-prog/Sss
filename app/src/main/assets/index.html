@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>تطبيق المحادثة الفوري</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Cairo Arabic Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase Compat Libraries -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        messenger: {
+                            blue: '#0084FF',
+                            lightBlue: '#E7F3FF',
+                            bgLight: '#F0F2F5',
+                            bgDark: '#121212',
+                            bubbleSent: '#0084FF',
+                            bubbleSentDark: '#1976D2',
+                            bubbleReceived: '#E4E6EB',
+                            bubbleReceivedDark: '#242526'
+                        }
+                    },
+                    fontFamily: {
+                        cairo: ['Cairo', 'Tajawal', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Cairo', 'Tajawal', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            overscroll-behavior-y: contain;
+        }
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.5);
+            border-radius: 9999px;
+        }
+        /* Page Transitions */
+        .app-screen {
+            display: none;
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        .app-screen.active {
+            display: flex;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        /* Glassmorphism utility */
+        .glass {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .dark .glass {
+            background: rgba(30, 30, 30, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-messenger-bgLight dark:bg-zinc-950 text-zinc-800 dark:text-zinc-100 min-h-screen flex flex-col overflow-hidden">
+
+    <!-- ==================== MAIN ROOT LAYOUT ==================== -->
+    <div id="app-container" class="flex-1 flex flex-col h-screen max-w-md mx-auto w-full bg-white dark:bg-zinc-900 shadow-2xl relative overflow-hidden border-x border-zinc-200 dark:border-zinc-800">
+
+        <!-- ==================== SCREEN 1: LOGIN ==================== -->
+        <div id="screen-login" class="app-screen active flex-1 flex-col justify-between p-6 bg-gradient-to-tr from-blue-600 via-indigo-600 to-indigo-800 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-800 text-white relative">
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-400/20 via-transparent to-transparent pointer-events-none"></div>
+            
+            <!-- Language toggle in login -->
+            <div class="flex justify-between items-center z-10">
+                <button onclick="toggleLanguage()" class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs transition border border-white/10" id="btn-lang-toggle">English</button>
+                <button onclick="toggleTheme()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm transition border border-white/10"><i class="fa-solid fa-moon"></i></button>
+            </div>
+
+            <!-- Top Header & Branding -->
+            <div class="text-center my-auto py-4 z-10">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white text-indigo-600 shadow-xl mb-4 transform rotate-12 transition hover:rotate-0">
+                    <i class="fa-solid fa-comments text-4xl"></i>
+                </div>
+                <h1 class="text-3xl font-bold tracking-tight mb-2" data-key="login-title">المحادثة الفورية</h1>
+                <p class="text-blue-100 text-sm" data-key="login-subtitle">تواصل مع أصدقائك بذكاء وأمان</p>
+            </div>
+
+            <!-- Form Container -->
+            <div class="w-full glass rounded-3xl p-6 text-zinc-800 dark:text-zinc-100 shadow-2xl z-10 mb-4 border border-white/10">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1" data-key="label-email">البريد الإلكتروني</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 right-3 flex items-center text-zinc-400"><i class="fa-solid fa-envelope"></i></span>
+                            <input type="email" id="login-email" class="w-full pl-3 pr-10 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-0 focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm text-zinc-900 dark:text-white" placeholder="you@example.com">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1" data-key="label-password">كلمة المرور</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 right-3 flex items-center text-zinc-400"><i class="fa-solid fa-lock"></i></span>
+                            <input type="password" id="login-password" class="w-full pl-3 pr-10 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-0 focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm text-zinc-900 dark:text-white" placeholder="••••••••">
+                        </div>
+                    </div>
+                    <button onclick="handleLogin()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg transition active:scale-95 flex justify-center items-center gap-2">
+                        <span data-key="btn-login">تسجيل الدخول</span>
+                        <i class="fa-solid fa-arrow-left flip-rtl"></i>
+                    </button>
+                    
+                    <div class="flex items-center my-2">
+                        <div class="flex-1 border-t border-zinc-200 dark:border-zinc-700"></div>
+                        <span class="px-3 text-xs text-zinc-400" data-key="login-or">أو</span>
+                        <div class="flex-1 border-t border-zinc-200 dark:border-zinc-700"></div>
+                    </div>
+
+                    <button onclick="skipToDemo()" class="w-full py-3 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-indigo-600 dark:text-indigo-400 font-bold text-xs transition flex justify-center items-center gap-1">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span data-key="btn-demo">الدخول بالوضع التجريبي (دون حساب)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer links -->
+            <div class="text-center text-xs text-white/80 z-10 py-2">
+                <span data-key="no-account">ليس لديك حساب؟</span>
+                <button onclick="navigateTo('screen-register')" class="font-bold underline text-white hover:text-blue-200 transition ml-1" data-key="link-register">سجل الآن</button>
+            </div>
+        </div>
+
+
+        <!-- ==================== SCREEN 2: REGISTER ==================== -->
+        <div id="screen-register" class="app-screen flex-1 flex-col justify-between p-6 bg-gradient-to-tr from-blue-600 via-indigo-600 to-indigo-800 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-800 text-white relative">
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-400/20 via-transparent to-transparent pointer-events-none"></div>
+
+            <div class="flex justify-between items-center z-10">
+                <button onclick="navigateTo('screen-login')" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm transition border border-white/10"><i class="fa-solid fa-arrow-right flip-rtl"></i></button>
+                <h3 class="font-bold text-sm" data-key="register-header">إنشاء حساب جديد</h3>
+                <div class="w-8 h-8"></div>
+            </div>
+
+            <div class="text-center my-4 z-10">
+                <p class="text-xs text-blue-100" data-key="register-subtitle">اختر صورتك الرمزية وسجل بياناتك للبدء</p>
+                <!-- Avatar selector -->
+                <div class="flex justify-center gap-2 mt-4" id="avatar-selector">
+                    <div onclick="selectAvatar('avatar1')" class="avatar-option w-12 h-12 rounded-full cursor-pointer bg-gradient-to-tr from-pink-500 to-rose-500 flex items-center justify-center shadow-md transform scale-110 border-2 border-white transition" data-avatar="avatar1"><i class="fa-solid fa-user text-white"></i></div>
+                    <div onclick="selectAvatar('avatar2')" class="avatar-option w-12 h-12 rounded-full cursor-pointer bg-gradient-to-tr from-blue-400 to-indigo-600 flex items-center justify-center shadow-md transition" data-avatar="avatar2"><i class="fa-solid fa-user-astronaut text-white"></i></div>
+                    <div onclick="selectAvatar('avatar3')" class="avatar-option w-12 h-12 rounded-full cursor-pointer bg-gradient-to-tr from-green-400 to-emerald-600 flex items-center justify-center shadow-md transition" data-avatar="avatar3"><i class="fa-solid fa-user-ninja text-white"></i></div>
+                    <div onclick="selectAvatar('avatar4')" class="avatar-option w-12 h-12 rounded-full cursor-pointer bg-gradient-to-tr from-amber-400 to-orange-600 flex items-center justify-center shadow-md transition" data-avatar="avatar4"><i class="fa-solid fa-user-tie text-white"></i></div>
+                </div>
+            </div>
+
+            <div class="w-full glass rounded-3xl p-6 text-zinc-800 dark:text-zinc-100 shadow-2xl z-10 mb-auto border border-white/10">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1" data-key="label-name">الاسم الكامل</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 right-3 flex items-center text-zinc-400"><i class="fa-solid fa-user"></i></span>
+                            <input type="text" id="register-name" class="w-full pl-3 pr-10 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-0 focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm text-zinc-900 dark:text-white" placeholder="أحمد محمد">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1" data-key="label-email">البريد الإلكتروني</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 right-3 flex items-center text-zinc-400"><i class="fa-solid fa-envelope"></i></span>
+                            <input type="email" id="register-email" class="w-full pl-3 pr-10 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-0 focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm text-zinc-900 dark:text-white" placeholder="name@domain.com">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1" data-key="label-password">كلمة المرور</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 right-3 flex items-center text-zinc-400"><i class="fa-solid fa-lock"></i></span>
+                            <input type="password" id="register-password" class="w-full pl-3 pr-10 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-0 focus:ring-2 focus:ring-indigo-500 outline-none transition text-sm text-zinc-900 dark:text-white" placeholder="••••••••">
+                        </div>
+                    </div>
+                    <button onclick="handleRegister()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg transition active:scale-95 flex justify-center items-center gap-2">
+                        <span data-key="btn-register-submit">إنشاء الحساب</span>
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="text-center text-xs text-white/80 z-10 py-4">
+                <span data-key="has-account">لديك حساب بالفعل؟</span>
+                <button onclick="navigateTo('screen-login')" class="font-bold underline text-white hover:text-blue-200 transition ml-1" data-key="link-login">تسجيل الدخول</button>
+            </div>
+        </div>
+
+
+        <!-- ==================== SCREEN 3: CHATS LIST ==================== -->
+        <div id="screen-chats" class="app-screen flex-1 flex-col bg-zinc-50 dark:bg-zinc-950">
+            <!-- App Header -->
+            <div class="px-4 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center sticky top-0 z-20">
+                <div class="flex items-center gap-3">
+                    <div id="user-profile-btn" onclick="navigateTo('screen-profile')" class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold shadow-md cursor-pointer relative">
+                        <span id="user-avatar-initial">أ</span>
+                        <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full"></div>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm leading-tight text-zinc-950 dark:text-zinc-100" id="header-user-name">اسم المستخدم</h4>
+                        <p class="text-xs text-green-500 dark:text-green-400 font-medium" id="firebase-status-badge"><i class="fa-solid fa-circle text-[8px] animate-pulse"></i> <span data-key="status-local">الوضع المحلي (أوفلاين)</span></p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="navigateTo('screen-settings')" class="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 flex items-center justify-center transition hover:bg-zinc-200 dark:hover:bg-zinc-700" title="الإعدادات"><i class="fa-solid fa-gear"></i></button>
+                    <button onclick="handleLogout()" class="w-9 h-9 rounded-full bg-zinc-100 dark:bg-zinc-800 text-rose-500 dark:text-rose-400 flex items-center justify-center transition hover:bg-rose-50 dark:hover:bg-rose-950/40" title="تسجيل الخروج"><i class="fa-solid fa-right-from-bracket"></i></button>
+                </div>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="px-4 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800">
+                <div class="relative">
+                    <span class="absolute inset-y-0 right-3 flex items-center text-zinc-400"><i class="fa-solid fa-magnifying-glass text-xs"></i></span>
+                    <input type="text" id="search-input" oninput="filterChats()" class="w-full pl-3 pr-9 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 focus:ring-2 focus:ring-blue-500 outline-none text-xs text-zinc-900 dark:text-white transition" placeholder="ابحث عن محادثات أو جهات اتصال...">
+                </div>
+            </div>
+
+            <!-- Active Chats Area -->
+            <div class="flex-1 overflow-y-auto" id="chats-list-container">
+                <!-- Chats dynamic content will be rendered here -->
+            </div>
+
+            <!-- Bottom Floating Actions -->
+            <div class="absolute bottom-6 left-6 flex flex-col gap-3 z-30">
+                <button onclick="openCreateGroupModal()" class="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-lg transition hover:scale-105 active:scale-95 border border-zinc-200 dark:border-zinc-700" title="إنشاء مجموعة"><i class="fa-solid fa-users text-lg"></i></button>
+                <button onclick="navigateTo('screen-friends')" class="w-14 h-14 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xl transition hover:scale-105 active:scale-95" title="محادثة جديدة"><i class="fa-solid fa-message text-lg"></i></button>
+            </div>
+        </div>
+
+
+        <!-- ==================== SCREEN 4: CHAT ROOM ==================== -->
+        <div id="screen-chat-room" class="app-screen flex-1 flex-col bg-zinc-100 dark:bg-zinc-950">
+            <!-- Chat Header -->
+            <div class="px-3 py-3 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center sticky top-0 z-20">
+                <div class="flex items-center gap-2">
+                    <button onclick="navigateBackToChats()" class="w-9 h-9 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300 transition"><i class="fa-solid fa-arrow-right flip-rtl"></i></button>
+                    <div id="room-header-avatar" class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold shadow-sm">ج</div>
+                    <div>
+                        <h4 class="font-bold text-sm text-zinc-900 dark:text-zinc-100 leading-tight" id="room-header-name">اسم المحادثة</h4>
+                        <p class="text-[10px] text-zinc-500 dark:text-zinc-400" id="room-header-status">متصل الآن</p>
+                    </div>
+                </div>
+                <div class="flex gap-1">
+                    <button onclick="clearChatMessages()" class="w-9 h-9 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 transition" title="مسح المحادثة"><i class="fa-solid fa-trash-can text-sm"></i></button>
+                    <button onclick="showGroupInfo()" class="w-9 h-9 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-500 dark:text-zinc-400 transition" id="btn-group-info" title="معلومات المجموعة"><i class="fa-solid fa-circle-info text-sm"></i></button>
+                </div>
+            </div>
+
+            <!-- Messages Stream Area -->
+            <div class="flex-1 overflow-y-auto px-4 py-4 space-y-3 flex flex-col" id="message-stream-container">
+                <!-- Messages dynamic content will load here -->
+            </div>
+
+            <!-- Quick Emoji Tray -->
+            <div id="quick-emoji-tray" class="px-4 py-1.5 bg-white dark:bg-zinc-900 border-t border-zinc-100 dark:border-zinc-800 flex justify-around text-lg">
+                <span onclick="appendEmoji('👍')" class="cursor-pointer hover:scale-125 transition">👍</span>
+                <span onclick="appendEmoji('❤️')" class="cursor-pointer hover:scale-125 transition">❤️</span>
+                <span onclick="appendEmoji('😂')" class="cursor-pointer hover:scale-125 transition">😂</span>
+                <span onclick="appendEmoji('😍')" class="cursor-pointer hover:scale-125 transition">😍</span>
+                <span onclick="appendEmoji('🙌')" class="cursor-pointer hover:scale-125 transition">🙌</span>
+                <span onclick="appendEmoji('🔥')" class="cursor-pointer hover:scale-125 transition">🔥</span>
+                <span onclick="appendEmoji('🌹')" class="cursor-pointer hover:scale-125 transition">🌹</span>
+                <span onclick="appendEmoji('💡')" class="cursor-pointer hover:scale-125 transition">💡</span>
+            </div>
+
+            <!-- Message Input Area -->
+            <div class="p-3 bg-white dark:bg-zinc-900 border-t border-zinc-200 dark:border-zinc-800 flex items-center gap-2">
+                <button onclick="toggleEmojiPicker()" class="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 flex items-center justify-center transition hover:bg-zinc-200"><i class="fa-regular fa-face-smile text-lg"></i></button>
+                <div class="flex-1 relative">
+                    <input type="text" id="chat-message-input" onkeydown="handleInputKeyPress(event)" class="w-full pl-3 pr-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-0 focus:ring-2 focus:ring-blue-500 outline-none text-xs text-zinc-900 dark:text-white transition" placeholder="اكتب رسالتك الفورية هنا...">
+                </div>
+                <button onclick="sendChatMessage()" class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg transition hover:bg-blue-700 active:scale-90"><i class="fa-solid fa-paper-plane text-xs rotate-180"></i></button>
+            </div>
+        </div>
+
+
+        <!-- ==================== SCREEN 5: SETTINGS ==================== -->
+        <div id="screen-settings" class="app-screen flex-1 flex-col bg-zinc-50 dark:bg-zinc-950 overflow-y-auto pb-8">
+            <!-- Header -->
+            <div class="px-4 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3 sticky top-0 z-20">
+                <button onclick="navigateTo('screen-chats')" class="w-9 h-9 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300 transition"><i class="fa-solid fa-arrow-right flip-rtl"></i></button>
+                <h3 class="font-bold text-base text-zinc-900 dark:text-zinc-100" data-key="settings-title">الإعدادات والربط</h3>
+            </div>
+
+            <div class="p-4 space-y-4">
+                <!-- Theme and Layout settings card -->
+                <div class="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm space-y-4 border border-zinc-100 dark:border-zinc-800">
+                    <h4 class="font-bold text-xs text-indigo-600 dark:text-indigo-400" data-key="header-general">الإعدادات العامة</h4>
+                    
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-semibold text-zinc-700 dark:text-zinc-300" data-key="setting-dark">المظهر الداكن (Dark Mode)</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="dark-theme-toggle" onchange="toggleTheme()" class="sr-only peer">
+                            <div class="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all dark:border-zinc-600 peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-semibold text-zinc-700 dark:text-zinc-300" data-key="setting-lang">اللغة والتخطيط (Language)</span>
+                        <button onclick="toggleLanguage()" class="px-4 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300" id="setting-lang-label">العربية (RTL)</button>
+                    </div>
+                </div>
+
+                <!-- Firebase Integration settings card -->
+                <div class="bg-white dark:bg-zinc-900 rounded-2xl p-4 shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-xs text-orange-600 dark:text-orange-400" data-key="header-firebase">ربط Firebase (قاعدة البيانات الفورية)</h4>
+                        <span id="firebase-indicator-setting" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">غير متصل</span>
+                    </div>
+                    
+                    <p class="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed" data-key="firebase-explain">
+                        قم بلصق إعدادات مشروع الفايرباص الخاص بك ليتم مزامنة المحادثات والرسائل ومصادقة المستخدمين فورياً مع السحابة. في حال تعذّر الاتصال أو عدم إدخالها، سيعمل التطبيق بالوضع المحلي غير المتصل افتراضياً.
+                    </p>
+
+                    <div class="space-y-3 pt-2">
+                        <div>
+                            <label class="block text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 mb-1">API Key</label>
+                            <input type="text" id="fb-apiKey" class="w-full px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 outline-none text-xs text-zinc-900 dark:text-white" placeholder="AIzaSy...">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 mb-1">Auth Domain</label>
+                            <input type="text" id="fb-authDomain" class="w-full px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 outline-none text-xs text-zinc-900 dark:text-white" placeholder="project-id.firebaseapp.com">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 mb-1">Database URL (RTDB)</label>
+                            <input type="text" id="fb-databaseURL" class="w-full px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 outline-none text-xs text-zinc-900 dark:text-white" placeholder="https://project-id.firebaseio.com">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 mb-1">Project ID</label>
+                            <input type="text" id="fb-projectId" class="w-full px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 outline-none text-xs text-zinc-900 dark:text-white" placeholder="project-id">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 mb-1">Storage Bucket</label>
+                            <input type="text" id="fb-storageBucket" class="w-full px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 outline-none text-xs text-zinc-900 dark:text-white" placeholder="project-id.appspot.com">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-semibold text-zinc-500 dark:text-zinc-400 mb-1">App ID</label>
+                            <input type="text" id="fb-appId" class="w-full px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 outline-none text-xs text-zinc-900 dark:text-white" placeholder="1:12345:web:123abc...">
+                        </div>
+                        
+                        <div class="flex gap-2 pt-2">
+                            <button onclick="saveFirebaseConfig()" class="flex-1 py-3 bg-gradient-to-r from-orange-500 to-amber-600 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex justify-center items-center gap-1">
+                                <i class="fa-solid fa-plug"></i>
+                                <span data-key="btn-connect-fb">ربط وتفعيل</span>
+                            </button>
+                            <button onclick="clearFirebaseConfig()" class="px-4 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-rose-500 dark:text-rose-400 font-bold text-xs rounded-xl transition active:scale-95">
+                                <span data-key="btn-reset">إعادة ضبط</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ==================== SCREEN 6: FRIENDS / CONTACTS ==================== -->
+        <div id="screen-friends" class="app-screen flex-1 flex-col bg-zinc-50 dark:bg-zinc-950">
+            <!-- Header -->
+            <div class="px-4 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3 sticky top-0 z-20">
+                <button onclick="navigateTo('screen-chats')" class="w-9 h-9 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300 transition"><i class="fa-solid fa-arrow-right flip-rtl"></i></button>
+                <h3 class="font-bold text-base text-zinc-900 dark:text-zinc-100" data-key="friends-title">المستخدمين والأصدقاء</h3>
+            </div>
+
+            <div class="p-3 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800">
+                <p class="text-xs text-zinc-500 dark:text-zinc-400" data-key="friends-explain">اضغط على أي مستخدم لبدء محادثة فورية معه مباشرة</p>
+            </div>
+
+            <!-- Friends Stream List -->
+            <div class="flex-1 overflow-y-auto" id="friends-list-container">
+                <!-- Dynamically loaded friends list -->
+            </div>
+        </div>
+
+
+        <!-- ==================== SCREEN 7: PROFILE ==================== -->
+        <div id="screen-profile" class="app-screen flex-1 flex-col bg-zinc-50 dark:bg-zinc-950">
+            <!-- Header -->
+            <div class="px-4 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-3 sticky top-0 z-20">
+                <button onclick="navigateTo('screen-chats')" class="w-9 h-9 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300 transition"><i class="fa-solid fa-arrow-right flip-rtl"></i></button>
+                <h3 class="font-bold text-base text-zinc-900 dark:text-zinc-100" data-key="profile-title">ملفي الشخصي</h3>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6 space-y-6 flex flex-col items-center">
+                <!-- Avatar block -->
+                <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center text-3xl font-bold shadow-xl relative" id="profile-page-avatar">
+                    <span id="profile-avatar-initial">أ</span>
+                </div>
+
+                <div class="w-full bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-100 dark:border-zinc-800 space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-400 mb-1" data-key="label-name">الاسم</label>
+                        <h4 class="font-bold text-base text-zinc-900 dark:text-white" id="profile-display-name">اسم العميل</h4>
+                    </div>
+                    <div class="border-t border-zinc-100 dark:border-zinc-800 pt-3">
+                        <label class="block text-xs font-semibold text-zinc-400 mb-1" data-key="label-email">البريد الإلكتروني</label>
+                        <h4 class="font-medium text-xs text-zinc-900 dark:text-white" id="profile-display-email">email@domain.com</h4>
+                    </div>
+                    <div class="border-t border-zinc-100 dark:border-zinc-800 pt-3">
+                        <label class="block text-xs font-semibold text-zinc-400 mb-1" data-key="profile-uid-label">معرّف المستخدم (UID)</label>
+                        <code class="block text-[10px] bg-zinc-50 dark:bg-zinc-800 p-2 rounded-xl text-zinc-600 dark:text-zinc-300 overflow-x-auto select-text" id="profile-display-uid">local_user_id_123456</code>
+                    </div>
+                </div>
+
+                <button onclick="handleLogout()" class="w-full py-3.5 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold text-sm rounded-2xl transition active:scale-95 flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span data-key="btn-logout">تسجيل الخروج من الحساب</span>
+                </button>
+            </div>
+        </div>
+
+
+        <!-- ==================== MODAL: CREATE GROUP ==================== -->
+        <div id="modal-create-group" class="hidden absolute inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div class="w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-2xl space-y-4 animate-[fadeIn_0.2s_ease-out]">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-sm text-zinc-900 dark:text-white" data-key="group-modal-title">إنشاء مجموعة جديدة</h3>
+                    <button onclick="closeCreateGroupModal()" class="w-8 h-8 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-400"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1" data-key="group-name-label">اسم المجموعة</label>
+                        <input type="text" id="new-group-name" class="w-full px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 outline-none text-xs text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-500" placeholder="مثال: نقاش المطورين 💻">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-1" data-key="group-members-label">اختر الأعضاء</label>
+                        <div class="max-h-36 overflow-y-auto space-y-2" id="group-friends-checkbox-container">
+                            <!-- Populated dynamically with contact checkboxes -->
+                        </div>
+                    </div>
+
+                    <button onclick="submitCreateGroup()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 flex justify-center items-center gap-1">
+                        <i class="fa-solid fa-plus"></i>
+                        <span data-key="btn-create-group-submit">تأكيد وإنشاء المجموعة</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ==================== AUDIO FEEDBACK (MOCK/SOUNDS) ==================== -->
+    <audio id="snd-receive" src="https://assets.mixkit.co/active_storage/sfx/2357/2357-84.wav" preload="auto"></audio>
+
+    <!-- ==================== LOGIC CODE ==================== -->
+    <script>
+        // Dictionary for Arabic/English localization
+        const localizations = {
+            'ar': {
+                'login-title': 'المحادثة الفورية',
+                'login-subtitle': 'تواصل مع أصدقائك بذكاء وأمان',
+                'label-email': 'البريد الإلكتروني',
+                'label-password': 'كلمة المرور',
+                'btn-login': 'تسجيل الدخول',
+                'login-or': 'أو',
+                'btn-demo': 'الدخول بالوضع التجريبي (دون حساب)',
+                'no-account': 'ليس لديك حساب؟',
+                'link-register': 'سجل الآن',
+                'register-header': 'إنشاء حساب جديد',
+                'register-subtitle': 'اختر صورتك الرمزية وسجل بياناتك للبدء',
+                'label-name': 'الاسم الكامل',
+                'btn-register-submit': 'إنشاء الحساب',
+                'has-account': 'لديك حساب بالفعل؟',
+                'link-login': 'تسجيل الدخول',
+                'status-local': 'الوضع المحلي (أوفلاين)',
+                'status-firebase': 'متصل بـ Firebase 🔥',
+                'status-fb-connecting': 'جاري الاتصال بـ Firebase...',
+                'settings-title': 'الإعدادات والربط',
+                'header-general': 'الإعدادات العامة',
+                'setting-dark': 'المظهر الداكن (Dark Mode)',
+                'setting-lang': 'اللغة والتخطيط (Language)',
+                'header-firebase': 'ربط Firebase (قاعدة البيانات الفورية)',
+                'firebase-explain': 'قم بلصق إعدادات مشروع الفايرباص الخاص بك ليتم مزامنة المحادثات والرسائل ومصادقة المستخدمين فورياً مع السحابة. في حال تعذّر الاتصال أو عدم إدخالها، سيعمل التطبيق بالوضع المحلي غير المتصل افتراضياً.',
+                'btn-connect-fb': 'ربط وتفعيل',
+                'btn-reset': 'إعادة ضبط',
+                'friends-title': 'المستخدمين والأصدقاء',
+                'friends-explain': 'اضغط على أي مستخدم لبدء محادثة فورية معه مباشرة',
+                'profile-title': 'ملفي الشخصي',
+                'profile-uid-label': 'معرّف المستخدم (UID)',
+                'btn-logout': 'تسجيل الخروج من الحساب',
+                'group-modal-title': 'إنشاء مجموعة جديدة',
+                'group-name-label': 'اسم المجموعة',
+                'group-members-label': 'اختر الأعضاء',
+                'btn-create-group-submit': 'تأكيد وإنشاء المجموعة'
+            },
+            'en': {
+                'login-title': 'Instant Messenger',
+                'login-subtitle': 'Connect with friends smartly & safely',
+                'label-email': 'Email Address',
+                'label-password': 'Password',
+                'btn-login': 'Login',
+                'login-or': 'or',
+                'btn-demo': 'Enter Demo Mode (No Account)',
+                'no-account': "Don't have an account?",
+                'link-register': 'Register Now',
+                'register-header': 'Create New Account',
+                'register-subtitle': 'Choose an avatar and register your details',
+                'label-name': 'Full Name',
+                'btn-register-submit': 'Register',
+                'has-account': 'Already have an account?',
+                'link-login': 'Login',
+                'status-local': 'Local Mode (Offline)',
+                'status-firebase': 'Connected to Firebase 🔥',
+                'status-fb-connecting': 'Connecting to Firebase...',
+                'settings-title': 'Settings & Linking',
+                'header-general': 'General Settings',
+                'setting-dark': 'Dark Appearance (Dark Mode)',
+                'setting-lang': 'Language & Layout (اللغة)',
+                'header-firebase': 'Firebase Integration (Realtime DB)',
+                'firebase-explain': 'Paste your Firebase Project Web credentials below to automatically sync users, rooms, and messages globally. If invalid or empty, the app will gracefully fall back to standalone offline mode.',
+                'btn-connect-fb': 'Save & Connect',
+                'btn-reset': 'Reset',
+                'friends-title': 'Users & Friends',
+                'friends-explain': 'Tap any contact to open an instant message channel',
+                'profile-title': 'My Profile',
+                'profile-uid-label': 'User Identifier (UID)',
+                'btn-logout': 'Sign Out from Account',
+                'group-modal-title': 'Create New Group Chat',
+                'group-name-label': 'Group Subject',
+                'group-members-label': 'Select Participants',
+                'btn-create-group-submit': 'Create Group'
+            }
+        };
+
+        // Application State State-management
+        let currentLanguage = localStorage.getItem('app_lang') || 'ar';
+        let currentTheme = localStorage.getItem('app_theme') || 'light';
+        let activeUser = null;
+        let activeChatId = null;
+        let firebaseApp = null;
+        let firebaseDb = null;
+        let firebaseAuth = null;
+        let isFirebaseConnected = false;
+        
+        // Mock data seed fallback storage
+        let mockUsers = [
+            { id: 'usr_ahmed', name: 'أحمد (مطور الفايرباص)', email: 'ahmed@firebase.com', avatar: 'avatar4' },
+            { id: 'usr_sarah', name: 'سارة العتيبي', email: 'sarah@test.com', avatar: 'avatar1' },
+            { id: 'usr_khaled', name: 'م. خالد الشهري', email: 'khaled@dev.com', avatar: 'avatar2' },
+            { id: 'usr_youssef', name: 'يوسف العلي', email: 'youssef@test.com', avatar: 'avatar3' }
+        ];
+
+        let mockChats = [
+            { id: 'chat_group_all', name: 'جروب نقاش التطبيق العالمي 💬', isGroup: true, members: ['usr_ahmed', 'usr_sarah', 'usr_khaled', 'usr_youssef'] },
+            { id: 'chat_support', name: 'فريق الدعم الفني والمساعدة 🛠️', isGroup: false, members: ['usr_ahmed'] }
+        ];
+
+        let mockMessages = [
+            { id: 'msg_1', chatId: 'chat_group_all', senderId: 'usr_ahmed', senderName: 'أحمد', text: 'مرحباً بالجميع! هذا التطبيق تم كتابته بالكامل بلغة HTML و CSS و JavaScript ويعمل بالوضع المزدوج المتصل والمنفصل! 🚀', timestamp: Date.now() - 3600000 },
+            { id: 'msg_2', chatId: 'chat_group_all', senderId: 'usr_sarah', senderName: 'سارة', text: 'التصميم مذهل وسلس جداً! هل يمكننا ربطه بقاعدة البيانات السحابية؟ 😍', timestamp: Date.now() - 3000000 },
+            { id: 'msg_3', chatId: 'chat_group_all', senderId: 'usr_ahmed', senderName: 'أحمد', text: 'بالتأكيد! اذهبوا للإعدادات وألصقوا إعدادات Firebase الخاصة بكم وسيتزامن كل شيء فوراً 🔥', timestamp: Date.now() - 2500000 },
+            { id: 'msg_4', chatId: 'chat_support', senderId: 'usr_ahmed', senderName: 'الدعم الفني', text: 'أهلاً بك! كيف يمكننا مساعدتك اليوم في تفعيل التطبيق؟', timestamp: Date.now() - 1200000 }
+        ];
+
+        let currentSelectedAvatar = 'avatar1';
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            applyTheme(currentTheme);
+            applyLanguage(currentLanguage);
+            setupFirebase();
+            
+            // Check if user session exists in localStorage
+            const savedUser = localStorage.getItem('active_user');
+            if (savedUser) {
+                activeUser = JSON.parse(savedUser);
+                loadUserDataAndNavigate();
+            } else {
+                navigateTo('screen-login');
+            }
+        });
+
+        // Toggle Themes
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            localStorage.setItem('app_theme', currentTheme);
+            applyTheme(currentTheme);
+        }
+
+        function applyTheme(theme) {
+            const html = document.documentElement;
+            const darkToggle = document.getElementById('dark-theme-toggle');
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                if (darkToggle) darkToggle.checked = true;
+            } else {
+                html.classList.remove('dark');
+                if (darkToggle) darkToggle.checked = false;
+            }
+        }
+
+        // Toggle Languages
+        function toggleLanguage() {
+            currentLanguage = currentLanguage === 'ar' ? 'en' : 'ar';
+            localStorage.setItem('app_lang', currentLanguage);
+            applyLanguage(currentLanguage);
+        }
+
+        function applyLanguage(lang) {
+            const doc = document.documentElement;
+            const elements = document.querySelectorAll('[data-key]');
+            
+            if (lang === 'ar') {
+                doc.setAttribute('dir', 'rtl');
+                doc.setAttribute('lang', 'ar');
+                document.getElementById('btn-lang-toggle').innerText = 'English';
+                document.getElementById('setting-lang-label').innerText = 'العربية (RTL)';
+            } else {
+                doc.setAttribute('dir', 'ltr');
+                doc.setAttribute('lang', 'en');
+                document.getElementById('btn-lang-toggle').innerText = 'العربية';
+                document.getElementById('setting-lang-label').innerText = 'English (LTR)';
+            }
+
+            elements.forEach(el => {
+                const key = el.getAttribute('data-key');
+                if (localizations[lang][key]) {
+                    el.innerText = localizations[lang][key];
+                }
+            });
+            
+            // Update inputs placeholder translation
+            const emailInputs = document.querySelectorAll('input[type="email"]');
+            const pwdInputs = document.querySelectorAll('input[type="password"]');
+            
+            emailInputs.forEach(i => i.placeholder = lang === 'ar' ? 'you@example.com' : 'you@example.com');
+            pwdInputs.forEach(i => i.placeholder = '••••••••');
+        }
+
+        // Navigation
+        function navigateTo(screenId) {
+            document.querySelectorAll('.app-screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            const target = document.getElementById(screenId);
+            if (target) {
+                target.classList.add('active');
+            }
+        }
+
+        // Backpress interceptor for Android Container
+        function handleAndroidBackPress() {
+            const activeScreen = document.querySelector('.app-screen.active');
+            if (!activeScreen) return false;
+            
+            const id = activeScreen.id;
+            if (id === 'screen-chat-room') {
+                navigateBackToChats();
+                return true;
+            } else if (id === 'screen-settings' || id === 'screen-friends' || id === 'screen-profile') {
+                navigateTo('screen-chats');
+                return true;
+            } else if (id === 'modal-create-group' && !document.getElementById('modal-create-group').classList.contains('hidden')) {
+                closeCreateGroupModal();
+                return true;
+            }
+            return false; // Exit app or default behaviour
+        }
+
+        // Setup Firebase dynamically based on Local Storage Config
+        function setupFirebase() {
+            const configStr = localStorage.getItem('firebase_config');
+            const statusBadge = document.getElementById('firebase-status-badge');
+            const settingsStatus = document.getElementById('firebase-indicator-setting');
+            
+            if (!configStr) {
+                setLocalStatus();
+                return;
+            }
+
+            try {
+                const config = JSON.parse(configStr);
+                
+                // If firebase app already initialized, delete it
+                if (firebase.apps.length > 0) {
+                    firebase.app().delete();
+                }
+
+                // Initialize New Firebase App instance
+                firebaseApp = firebase.initializeApp(config);
+                firebaseDb = firebase.database();
+                isFirebaseConnected = true;
+
+                // Update Status UI
+                statusBadge.innerHTML = `<i class="fa-solid fa-circle text-[8px] text-emerald-500 animate-pulse"></i> <span>🔥 Firebase متصل</span>`;
+                statusBadge.className = "text-xs text-emerald-500 font-medium";
+                settingsStatus.innerText = "متصل وسحابي";
+                settingsStatus.className = "px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400";
+                
+                // Populate input settings value if exists
+                document.getElementById('fb-apiKey').value = config.apiKey || '';
+                document.getElementById('fb-authDomain').value = config.authDomain || '';
+                document.getElementById('fb-databaseURL').value = config.databaseURL || '';
+                document.getElementById('fb-projectId').value = config.projectId || '';
+                document.getElementById('fb-storageBucket').value = config.storageBucket || '';
+                document.getElementById('fb-appId').value = config.appId || '';
+
+                // Listen for changes in Firebase Database if logged in
+                if (activeUser) {
+                    syncFirebaseData();
+                }
+
+            } catch (err) {
+                console.error("Firebase Initialization Error: ", err);
+                alert("تعذر الاتصال بـ Firebase باستخدام المدخلات الحالية. يرجى التحقق وإعادة المحاولة.");
+                clearFirebaseConfig();
+            }
+        }
+
+        function setLocalStatus() {
+            isFirebaseConnected = false;
+            const statusBadge = document.getElementById('firebase-status-badge');
+            const settingsStatus = document.getElementById('firebase-indicator-setting');
+            
+            if (statusBadge) {
+                statusBadge.innerHTML = `<i class="fa-solid fa-circle text-[8px] text-amber-500 animate-pulse"></i> <span data-key="status-local">الوضع المحلي (أوفلاين)</span>`;
+                statusBadge.className = "text-xs text-amber-500 font-medium";
+            }
+            if (settingsStatus) {
+                settingsStatus.innerText = "غير متصل (محلي)";
+                settingsStatus.className = "px-2.5 py-1 rounded-full text-[10px] font-bold bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
+            }
+        }
+
+        // Save Firebase Config Form
+        function saveFirebaseConfig() {
+            const config = {
+                apiKey: document.getElementById('fb-apiKey').value.trim(),
+                authDomain: document.getElementById('fb-authDomain').value.trim(),
+                databaseURL: document.getElementById('fb-databaseURL').value.trim(),
+                projectId: document.getElementById('fb-projectId').value.trim(),
+                storageBucket: document.getElementById('fb-storageBucket').value.trim(),
+                appId: document.getElementById('fb-appId').value.trim()
+            };
+
+            if (!config.apiKey || !config.projectId) {
+                alert("يرجى ملء الحقول الأساسية على الأقل (API Key & Project ID)");
+                return;
+            }
+
+            localStorage.setItem('firebase_config', JSON.stringify(config));
+            setupFirebase();
+            alert("تم حفظ إعدادات الفايرباص بنجاح وتفعيل الربط السحابي!");
+            navigateTo('screen-chats');
+            loadUserDataAndNavigate();
+        }
+
+        // Reset Firebase Setup
+        function clearFirebaseConfig() {
+            localStorage.removeItem('firebase_config');
+            document.getElementById('fb-apiKey').value = '';
+            document.getElementById('fb-authDomain').value = '';
+            document.getElementById('fb-databaseURL').value = '';
+            document.getElementById('fb-projectId').value = '';
+            document.getElementById('fb-storageBucket').value = '';
+            document.getElementById('fb-appId').value = '';
+            setLocalStatus();
+            alert("تم إزالة الإعدادات بنجاح، تم العودة للوضع المحلي التلقائي.");
+        }
+
+        // Avatar selector inside register
+        function selectAvatar(avatarId) {
+            currentSelectedAvatar = avatarId;
+            document.querySelectorAll('.avatar-option').forEach(option => {
+                option.classList.remove('scale-110', 'border-2', 'border-white');
+            });
+            const selected = document.querySelector(`[data-avatar="${avatarId}"]`);
+            if (selected) {
+                selected.classList.add('scale-110', 'border-2', 'border-white');
+            }
+        }
+
+        // Handle Logins
+        function handleLogin() {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+
+            if (!email || !password) {
+                alert("يرجى إدخال البريد الإلكتروني وكلمة المرور.");
+                return;
+            }
+
+            // Simple demo authenticate helper
+            let user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+            if (!user) {
+                // Register dynamically for ease of use
+                user = {
+                    id: 'usr_' + Date.now(),
+                    name: email.split('@')[0],
+                    email: email,
+                    avatar: 'avatar1'
+                };
+                mockUsers.push(user);
+            }
+
+            activeUser = user;
+            localStorage.setItem('active_user', JSON.stringify(user));
+            loadUserDataAndNavigate();
+        }
+
+        // Skip directly to Demo without accounts
+        function skipToDemo() {
+            activeUser = {
+                id: 'usr_demo',
+                name: 'ضيف تجريبي',
+                email: 'demo@domain.com',
+                avatar: 'avatar2'
+            };
+            localStorage.setItem('active_user', JSON.stringify(activeUser));
+            loadUserDataAndNavigate();
+        }
+
+        // Handle Registration
+        function handleRegister() {
+            const name = document.getElementById('register-name').value.trim();
+            const email = document.getElementById('register-email').value.trim();
+            const password = document.getElementById('register-password').value.trim();
+
+            if (!name || !email || !password) {
+                alert("يرجى تعبئة كافة الحقول لإنشاء حساب.");
+                return;
+            }
+
+            const newUser = {
+                id: 'usr_' + Date.now(),
+                name: name,
+                email: email,
+                avatar: currentSelectedAvatar
+            };
+
+            mockUsers.push(newUser);
+            activeUser = newUser;
+            localStorage.setItem('active_user', JSON.stringify(newUser));
+            
+            // Sync user to cloud database if online
+            if (isFirebaseConnected && firebaseDb) {
+                firebaseDb.ref('users/' + newUser.id).set(newUser);
+            }
+
+            alert("تهانينا! تم إنشاء حسابك بنجاح.");
+            loadUserDataAndNavigate();
+        }
+
+        // Load dashboard & setup profiles
+        function loadUserDataAndNavigate() {
+            // Set values in elements
+            document.getElementById('header-user-name').innerText = activeUser.name;
+            document.getElementById('user-avatar-initial').innerText = activeUser.name.charAt(0);
+            
+            document.getElementById('profile-display-name').innerText = activeUser.name;
+            document.getElementById('profile-display-email').innerText = activeUser.email;
+            document.getElementById('profile-display-uid').innerText = activeUser.id;
+            document.getElementById('profile-avatar-initial').innerText = activeUser.name.charAt(0);
+            
+            // Render Chats & Nav
+            renderChatsList();
+            navigateTo('screen-chats');
+
+            // Trigger sync if cloud mode is running
+            if (isFirebaseConnected) {
+                syncFirebaseData();
+            }
+        }
+
+        // Render Active Conversations list
+        function renderChatsList() {
+            const container = document.getElementById('chats-list-container');
+            container.innerHTML = '';
+
+            let chatsToRender = [...mockChats];
+
+            if (chatsToRender.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-8 text-center text-zinc-400 mt-12">
+                        <i class="fa-regular fa-comment-dots text-5xl mb-3 opacity-50"></i>
+                        <p class="text-xs">لا يوجد محادثات نشطة بعد.</p>
+                        <button onclick="navigateTo('screen-friends')" class="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition">ابدأ مراسلة صديق</button>
+                    </div>
+                `;
+                return;
+            }
+
+            chatsToRender.forEach(chat => {
+                // Find last message
+                const chatMsgs = mockMessages.filter(m => m.chatId === chat.id);
+                let lastMsgText = "لا توجد رسائل بعد";
+                let lastMsgTime = "";
+                
+                if (chatMsgs.length > 0) {
+                    const sorted = chatMsgs.sort((a,b) => b.timestamp - a.timestamp);
+                    lastMsgText = sorted[0].text;
+                    const date = new Date(sorted[0].timestamp);
+                    lastMsgTime = date.toLocaleTimeString(currentLanguage === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+                }
+
+                const initialChar = chat.name.charAt(0);
+                const bgGradient = chat.isGroup 
+                    ? 'from-emerald-500 to-teal-600' 
+                    : 'from-blue-500 to-indigo-600';
+
+                const cardHtml = `
+                    <div onclick="openChatRoom('${chat.id}')" class="flex items-center gap-3 p-4 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/50 hover:bg-zinc-100/70 dark:hover:bg-zinc-800/70 cursor-pointer transition">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr ${bgGradient} text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                            ${initialChar}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-baseline mb-1">
+                                <h4 class="font-bold text-xs text-zinc-900 dark:text-white truncate">${chat.name}</h4>
+                                <span class="text-[10px] text-zinc-400 font-medium">${lastMsgTime}</span>
+                            </div>
+                            <p class="text-xs text-zinc-500 dark:text-zinc-400 truncate">${lastMsgText}</p>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', cardHtml);
+            });
+        }
+
+        // Filter search input
+        function filterChats() {
+            const input = document.getElementById('search-input').value.toLowerCase();
+            const cards = document.querySelectorAll('#chats-list-container > div');
+            
+            cards.forEach(card => {
+                const title = card.querySelector('h4').innerText.toLowerCase();
+                const desc = card.querySelector('p').innerText.toLowerCase();
+                if (title.includes(input) || desc.includes(input)) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // Open chat room
+        function openChatRoom(chatId) {
+            activeChatId = chatId;
+            const chat = mockChats.find(c => c.id === chatId);
+            if (!chat) return;
+
+            document.getElementById('room-header-name').innerText = chat.name;
+            document.getElementById('room-header-avatar').innerText = chat.name.charAt(0);
+            
+            const initialChar = chat.name.charAt(0);
+            const bgGradient = chat.isGroup 
+                ? 'from-emerald-500 to-teal-600' 
+                : 'from-blue-500 to-indigo-600';
+            
+            const headerAvatar = document.getElementById('room-header-avatar');
+            headerAvatar.className = `w-10 h-10 rounded-xl bg-gradient-to-tr ${bgGradient} text-white flex items-center justify-center font-bold shadow-sm`;
+
+            // Toggle info button visibility based on chat type (Group info vs clear)
+            const infoBtn = document.getElementById('btn-group-info');
+            if (chat.isGroup) {
+                infoBtn.classList.remove('hidden');
+                document.getElementById('room-header-status').innerText = `${chat.members.length} أعضاء`;
+            } else {
+                infoBtn.classList.add('hidden');
+                document.getElementById('room-header-status').innerText = "نشط الآن";
+            }
+
+            renderMessages();
+            navigateTo('screen-chat-room');
+            
+            // Scroll to bottom
+            setTimeout(() => {
+                const stream = document.getElementById('message-stream-container');
+                stream.scrollTop = stream.scrollHeight;
+            }, 100);
+        }
+
+        // Navigate back
+        function navigateBackToChats() {
+            activeChatId = null;
+            renderChatsList();
+            navigateTo('screen-chats');
+        }
+
+        // Clear Chat Room history
+        function clearChatMessages() {
+            if (confirm("هل أنت متأكد من رغبتك في مسح كافة رسائل هذه المحادثة محلياً؟")) {
+                mockMessages = mockMessages.filter(m => m.chatId !== activeChatId);
+                
+                if (isFirebaseConnected && firebaseDb) {
+                    firebaseDb.ref('messages/' + activeChatId).remove();
+                }
+
+                renderMessages();
+            }
+        }
+
+        // Append quick emoji
+        function appendEmoji(emoji) {
+            const input = document.getElementById('chat-message-input');
+            input.value += emoji;
+            input.focus();
+        }
+
+        // Render Messages Stream inside room
+        function renderMessages() {
+            const container = document.getElementById('message-stream-container');
+            container.innerHTML = '';
+
+            const chatMsgs = mockMessages.filter(m => m.chatId === activeChatId)
+                                        .sort((a,b) => a.timestamp - b.timestamp);
+
+            if (chatMsgs.length === 0) {
+                container.innerHTML = `
+                    <div class="flex-1 flex flex-col items-center justify-center p-8 text-center text-zinc-400 mt-12 my-auto">
+                        <i class="fa-solid fa-lock text-3xl mb-2 opacity-50 text-indigo-500"></i>
+                        <p class="text-[10px] font-semibold max-w-[200px]">المحادثات مشفرة وآمنة تماماً. اكتب رسالتك الأولى للبدء بالنقاش!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            chatMsgs.forEach(msg => {
+                const isOutgoing = msg.senderId === activeUser.id;
+                const date = new Date(msg.timestamp);
+                const timeStr = date.toLocaleTimeString(currentLanguage === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+
+                let bubbleClass = "";
+                let alignmentClass = "";
+                
+                if (isOutgoing) {
+                    alignmentClass = "self-end items-end";
+                    bubbleClass = "bg-gradient-to-tr from-blue-600 to-indigo-600 text-white rounded-3xl rounded-br-sm shadow-md";
+                } else {
+                    alignmentClass = "self-start items-start";
+                    bubbleClass = "bg-zinc-200 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-3xl rounded-bl-sm shadow-sm";
+                }
+
+                const senderHeaderHtml = (!isOutgoing && msg.senderName) 
+                    ? `<span class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 mb-0.5 px-2">${msg.senderName}</span>` 
+                    : ``;
+
+                const msgHtml = `
+                    <div class="flex flex-col max-w-[80%] ${alignmentClass} group relative">
+                        ${senderHeaderHtml}
+                        <div class="p-3.5 text-xs font-medium leading-relaxed ${bubbleClass}">
+                            <p class="whitespace-pre-wrap select-text">${msg.text}</p>
+                            <div class="flex justify-between items-center gap-2 mt-1 text-[9px] opacity-75">
+                                <span>${timeStr}</span>
+                                ${isOutgoing ? '<i class="fa-solid fa-check-double text-[9px]"></i>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', msgHtml);
+            });
+        }
+
+        // Send Chat Messages Action
+        function sendChatMessage() {
+            const input = document.getElementById('chat-message-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const newMsg = {
+                id: 'msg_' + Date.now(),
+                chatId: activeChatId,
+                senderId: activeUser.id,
+                senderName: activeUser.name,
+                text: text,
+                timestamp: Date.now()
+            };
+
+            // Add local message representation
+            mockMessages.push(newMsg);
+            input.value = '';
+
+            // If Firebase is active, sync cloud instantly
+            if (isFirebaseConnected && firebaseDb) {
+                firebaseDb.ref('messages/' + activeChatId).push(newMsg);
+            }
+
+            // Play sound effect
+            playAudioFeedback();
+
+            // Re-render
+            renderMessages();
+            
+            // Scroll to bottom
+            setTimeout(() => {
+                const stream = document.getElementById('message-stream-container');
+                stream.scrollTop = stream.scrollHeight;
+            }, 80);
+
+            // Simulation bot reply if in local offline demo mode
+            if (!isFirebaseConnected) {
+                simulateBotReply();
+            }
+        }
+
+        function handleInputKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        // Simulate interactive automated reply
+        function simulateBotReply() {
+            setTimeout(() => {
+                const botAnswersAr = [
+                    "رائع جداً! يسعدني كثيراً سماع ذلك! 👍",
+                    "هذه الواجهة البرمجية تعمل بشكل تفاعلي بالكامل بالوضع المحلي الأوفلاين! 🚀",
+                    "مدهش! هل تريد ربط الفايرباص الخاص بك الآن لتزامن رسائلك الحقيقية؟ 🔥",
+                    "التصميم مبني باستخدام Tailwind CSS و FontAwesome ليكون خفيفاً وسريع الاستجابة على محاكي الاندرويد!",
+                    "تطبيق رائع جداً ومثالي لمحادثات المجموعات والفرق! 💬"
+                ];
+                
+                const botAnswersEn = [
+                    "That is brilliant! Awesome to hear that! 👍",
+                    "This interface runs fully interactive locally offline! 🚀",
+                    "Perfect! Do you want to connect your Firebase now to test real-time cloud sync?",
+                    "The layout is extremely crisp and fast, optimized for standard Android viewport dimensions!",
+                    "Fantastic progress on the HTML implementation!"
+                ];
+
+                const responses = currentLanguage === 'ar' ? botAnswersAr : botAnswersEn;
+                const randomText = responses[Math.floor(Math.random() * responses.length)];
+
+                const replyMsg = {
+                    id: 'msg_bot_' + Date.now(),
+                    chatId: activeChatId,
+                    senderId: 'usr_ahmed',
+                    senderName: 'أحمد المساعد الذكي',
+                    text: randomText,
+                    timestamp: Date.now()
+                };
+
+                mockMessages.push(replyMsg);
+                playAudioFeedback();
+                renderMessages();
+
+                setTimeout(() => {
+                    const stream = document.getElementById('message-stream-container');
+                    stream.scrollTop = stream.scrollHeight;
+                }, 80);
+
+            }, 1500);
+        }
+
+        // Toggle Emoji Tray display
+        function toggleEmojiPicker() {
+            const tray = document.getElementById('quick-emoji-tray');
+            tray.classList.toggle('hidden');
+        }
+
+        function playAudioFeedback() {
+            try {
+                const snd = document.getElementById('snd-receive');
+                snd.currentTime = 0;
+                snd.play();
+            } catch(e) {}
+        }
+
+        // Create Group modal helpers
+        function openCreateGroupModal() {
+            const container = document.getElementById('group-friends-checkbox-container');
+            container.innerHTML = '';
+
+            mockUsers.forEach(user => {
+                const checkboxHtml = `
+                    <label class="flex items-center gap-2 p-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer text-xs font-semibold">
+                        <input type="checkbox" value="${user.id}" class="rounded border-zinc-300 dark:border-zinc-700 text-indigo-600 focus:ring-indigo-500">
+                        <span>${user.name}</span>
+                    </label>
+                `;
+                container.insertAdjacentHTML('beforeend', checkboxHtml);
+            });
+
+            document.getElementById('modal-create-group').classList.remove('hidden');
+        }
+
+        function closeCreateGroupModal() {
+            document.getElementById('modal-create-group').classList.add('hidden');
+        }
+
+        function submitCreateGroup() {
+            const groupNameInput = document.getElementById('new-group-name');
+            const name = groupNameInput.value.trim();
+            
+            if (!name) {
+                alert("يرجى إدخال اسم المجموعة.");
+                return;
+            }
+
+            const checkedBoxes = document.querySelectorAll('#group-friends-checkbox-container input[type="checkbox"]:checked');
+            const selectedMembers = [activeUser.id];
+            
+            checkedBoxes.forEach(box => {
+                selectedMembers.push(box.value);
+            });
+
+            const newGroupId = 'group_' + Date.now();
+            const newGroup = {
+                id: newGroupId,
+                name: name,
+                isGroup: true,
+                members: selectedMembers
+            };
+
+            mockChats.push(newGroup);
+            groupNameInput.value = '';
+            closeCreateGroupModal();
+            renderChatsList();
+            
+            // Sync to Firebase if connected
+            if (isFirebaseConnected && firebaseDb) {
+                firebaseDb.ref('chats/' + newGroupId).set(newGroup);
+            }
+
+            alert("تم إنشاء المجموعة الجديدة بنجاح! 🎉");
+            openChatRoom(newGroupId);
+        }
+
+        // Friends List screen render
+        function renderFriendsScreen() {
+            const container = document.getElementById('friends-list-container');
+            container.innerHTML = '';
+
+            mockUsers.forEach(user => {
+                if (user.id === activeUser.id) return; // Skip self
+
+                const html = `
+                    <div onclick="startChatWithFriend('${user.id}')" class="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 cursor-pointer transition">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                ${user.name.charAt(0)}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-xs text-zinc-900 dark:text-white leading-tight">${user.name}</h4>
+                                <p class="text-[10px] text-zinc-400">${user.email}</p>
+                            </div>
+                        </div>
+                        <button class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold text-[10px] transition">تراسل</button>
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        function startChatWithFriend(friendId) {
+            const friend = mockUsers.find(u => u.id === friendId);
+            if (!friend) return;
+
+            // Check if chat already exists
+            let chat = mockChats.find(c => !c.isGroup && c.members.includes(friendId) && c.members.includes(activeUser.id));
+            
+            if (!chat) {
+                const newChatId = 'chat_dm_' + Date.now();
+                chat = {
+                    id: newChatId,
+                    name: friend.name,
+                    isGroup: false,
+                    members: [activeUser.id, friendId]
+                };
+                mockChats.push(chat);
+                
+                // Sync to cloud if active
+                if (isFirebaseConnected && firebaseDb) {
+                    firebaseDb.ref('chats/' + newChatId).set(chat);
+                }
+            }
+
+            openChatRoom(chat.id);
+        }
+
+        // Show Group details info
+        function showGroupInfo() {
+            const chat = mockChats.find(c => c.id === activeChatId);
+            if (!chat) return;
+
+            let namesList = [];
+            chat.members.forEach(mId => {
+                if (mId === activeUser.id) {
+                    namesList.push(currentLanguage === 'ar' ? 'أنت (المالك)' : 'You (Owner)');
+                } else {
+                    const usr = mockUsers.find(u => u.id === mId);
+                    if (usr) namesList.push(usr.name);
+                }
+            });
+
+            alert(`معلومات المجموعة:\n-----------------\nالاسم: ${chat.name}\nالأعضاء في المجموعة:\n - ` + namesList.join('\n - '));
+        }
+
+        // Handle Logouts
+        function handleLogout() {
+            if (confirm("هل أنت متأكد من تسجيل الخروج؟")) {
+                localStorage.removeItem('active_user');
+                activeUser = null;
+                navigateTo('screen-login');
+            }
+        }
+
+        // Navigation helpers from external buttons
+        const originalNavigateTo = navigateTo;
+        navigateTo = function(screenId) {
+            if (screenId === 'screen-friends') {
+                renderFriendsScreen();
+            }
+            originalNavigateTo(screenId);
+        }
+
+        // Realtime Firebase DB Synchronization engine
+        function syncFirebaseData() {
+            if (!isFirebaseConnected || !firebaseDb) return;
+
+            // 1. Sync Active User Nodes
+            firebaseDb.ref('users').once('value').then(snapshot => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    Object.keys(data).forEach(key => {
+                        if (!mockUsers.find(u => u.id === key)) {
+                            mockUsers.push(data[key]);
+                        }
+                    });
+                }
+            });
+
+            // 2. Sync Chat Channels Node
+            firebaseDb.ref('chats').on('value', snapshot => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const cloudChats = [];
+                    Object.keys(data).forEach(key => {
+                        cloudChats.push({ id: key, ...data[key] });
+                    });
+                    
+                    // Merge cloud chats with local mock
+                    cloudChats.forEach(c => {
+                        const existing = mockChats.find(x => x.id === c.id);
+                        if (!existing) {
+                            mockChats.push(c);
+                        }
+                    });
+                    
+                    if (document.getElementById('screen-chats').classList.contains('active')) {
+                        renderChatsList();
+                    }
+                }
+            });
+
+            // 3. Sync Messages stream inside rooms
+            firebaseDb.ref('messages').on('value', snapshot => {
+                if (snapshot.exists()) {
+                    const data = snapshot.val();
+                    const allCloudMsgs = [];
+                    
+                    Object.keys(data).forEach(chatId => {
+                        const chatRoomMsgs = data[chatId];
+                        Object.keys(chatRoomMsgs).forEach(msgKey => {
+                            allCloudMsgs.push(chatRoomMsgs[msgKey]);
+                        });
+                    });
+
+                    // Update local message list store without duplicate entries
+                    allCloudMsgs.forEach(cMsg => {
+                        if (!mockMessages.find(m => m.id === cMsg.id)) {
+                            mockMessages.push(cMsg);
+                            playAudioFeedback();
+                        }
+                    });
+
+                    if (activeChatId && document.getElementById('screen-chat-room').classList.contains('active')) {
+                        renderMessages();
+                        // Scroll to bottom
+                        const stream = document.getElementById('message-stream-container');
+                        if (stream) stream.scrollTop = stream.scrollHeight;
+                    }
+                    
+                    if (document.getElementById('screen-chats').classList.contains('active')) {
+                        renderChatsList();
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
