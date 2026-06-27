@@ -386,13 +386,24 @@
                 <h3 class="font-bold text-base text-zinc-900 dark:text-zinc-100" data-key="friends-title">المستخدمين والأصدقاء</h3>
             </div>
 
-            <div class="p-3 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800">
-                <p class="text-xs text-zinc-500 dark:text-zinc-400" data-key="friends-explain">اضغط على أي مستخدم لبدء محادثة فورية معه مباشرة</p>
+            <!-- Search and Add Field -->
+            <div class="p-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 space-y-2">
+                <p class="text-[11px] text-zinc-500 dark:text-zinc-400 mb-1" data-key="friends-explain">اضغط على أي مستخدم لبدء محادثة فورية معه مباشرة</p>
+                <div class="flex gap-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-user-plus absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
+                        <input type="text" id="friend-search-input" oninput="filterFriendsList()" class="w-full pr-9 pl-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border-0 outline-none text-xs text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-500 transition" placeholder="ابحث عن صديق بالاسم أو البريد...">
+                    </div>
+                    <button onclick="handleQuickAddFriend()" class="px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition active:scale-95 shadow-sm">
+                        <i class="fa-solid fa-plus text-[10px]"></i>
+                        <span data-key="btn-add-friend">إضافة صديق</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Friends Stream List -->
-            <div class="flex-1 overflow-y-auto" id="friends-list-container">
-                <!-- Dynamically loaded friends list -->
+            <div class="flex-1 overflow-y-auto space-y-4 py-4" id="friends-list-container">
+                <!-- Dynamically loaded friends list (My Friends + Suggestions) -->
             </div>
         </div>
 
@@ -512,6 +523,12 @@
                 'btn-reset': 'إعادة ضبط',
                 'friends-title': 'المستخدمين والأصدقاء',
                 'friends-explain': 'اضغط على أي مستخدم لبدء محادثة فورية معه مباشرة',
+                'friends-search-placeholder': 'ابحث عن صديق بالاسم أو البريد الإلكتروني...',
+                'btn-add-friend': 'إضافة صديق',
+                'suggestions-header': 'اقتراحات الأصدقاء (قد تعرفهم) ✨',
+                'my-friends-header': 'أصدقائي الحاليين 👥',
+                'no-friends-yet': 'ليس لديك أصدقاء مضافين حالياً. تصفح الاقتراحات بالأسفل لإضافتهم!',
+                'no-suggestions': 'لا توجد اقتراحات أصدقاء متبقية حالياً.',
                 'profile-title': 'ملفي الشخصي',
                 'profile-uid-label': 'معرّف المستخدم (UID)',
                 'btn-logout': 'تسجيل الخروج من الحساب',
@@ -549,6 +566,12 @@
                 'btn-reset': 'Reset',
                 'friends-title': 'Users & Friends',
                 'friends-explain': 'Tap any contact to open an instant message channel',
+                'friends-search-placeholder': 'Search friend by name or email...',
+                'btn-add-friend': 'Add Friend',
+                'suggestions-header': 'People You May Know ✨',
+                'my-friends-header': 'My Friends 👥',
+                'no-friends-yet': 'You have no friends added yet. Browse the suggestions below to add some!',
+                'no-suggestions': 'No remaining friend suggestions at this time.',
                 'profile-title': 'My Profile',
                 'profile-uid-label': 'User Identifier (UID)',
                 'btn-logout': 'Sign Out from Account',
@@ -574,7 +597,10 @@
             { id: 'usr_ahmed', name: 'أحمد (مطور الفايرباص)', email: 'ahmed@firebase.com', avatar: 'avatar4' },
             { id: 'usr_sarah', name: 'سارة العتيبي', email: 'sarah@test.com', avatar: 'avatar1' },
             { id: 'usr_khaled', name: 'م. خالد الشهري', email: 'khaled@dev.com', avatar: 'avatar2' },
-            { id: 'usr_youssef', name: 'يوسف العلي', email: 'youssef@test.com', avatar: 'avatar3' }
+            { id: 'usr_youssef', name: 'يوسف العلي', email: 'youssef@test.com', avatar: 'avatar3' },
+            { id: 'usr_reem', name: 'ريم القحطاني', email: 'reem@domain.com', avatar: 'avatar1' },
+            { id: 'usr_bandar', name: 'بندر العتيبي', email: 'bandar@domain.com', avatar: 'avatar2' },
+            { id: 'usr_laila', name: 'ليلى عبدالله', email: 'laila@domain.com', avatar: 'avatar3' }
         ];
 
         let mockChats = [
@@ -662,6 +688,11 @@
             
             emailInputs.forEach(i => i.placeholder = lang === 'ar' ? 'you@example.com' : 'you@example.com');
             pwdInputs.forEach(i => i.placeholder = '••••••••');
+
+            const friendSearchInput = document.getElementById('friend-search-input');
+            if (friendSearchInput) {
+                friendSearchInput.placeholder = lang === 'ar' ? 'ابحث عن صديق بالاسم أو البريد...' : 'Search friend by name or email...';
+            }
         }
 
         // Navigation
@@ -892,6 +923,12 @@
 
         // Load dashboard & setup profiles
         function loadUserDataAndNavigate() {
+            // Ensure activeUser has friends array
+            if (!activeUser.friends) {
+                activeUser.friends = ['usr_ahmed', 'usr_sarah'];
+                localStorage.setItem('active_user', JSON.stringify(activeUser));
+            }
+
             // Set values in elements
             document.getElementById('header-user-name').innerText = activeUser.name;
             document.getElementById('user-avatar-initial').innerText = activeUser.name.charAt(0);
@@ -1434,27 +1471,215 @@
         // Friends List screen render
         function renderFriendsScreen() {
             const container = document.getElementById('friends-list-container');
+            if (!container) return;
             container.innerHTML = '';
 
-            mockUsers.forEach(user => {
-                if (user.id === activeUser.id) return; // Skip self
+            const filterText = (document.getElementById('friend-search-input')?.value || '').toLowerCase().trim();
 
-                const html = `
-                    <div onclick="startChatWithFriend('${user.id}')" class="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-100/60 dark:hover:bg-zinc-800/60 cursor-pointer transition">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-                                ${user.name.charAt(0)}
-                            </div>
-                            <div>
-                                <h4 class="font-bold text-xs text-zinc-900 dark:text-white leading-tight">${user.name}</h4>
-                                <p class="text-[10px] text-zinc-400">${user.email}</p>
-                            </div>
-                        </div>
-                        <button class="px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold text-[10px] transition">تراسل</button>
+            // Ensure activeUser has friends array
+            if (!activeUser.friends) {
+                activeUser.friends = ['usr_ahmed', 'usr_sarah'];
+                localStorage.setItem('active_user', JSON.stringify(activeUser));
+            }
+
+            // Filter users
+            const allOtherUsers = mockUsers.filter(user => user.id !== activeUser.id);
+            
+            // Separate into Friends and Suggestions
+            const friendsList = allOtherUsers.filter(u => activeUser.friends.includes(u.id));
+            const suggestionsList = allOtherUsers.filter(u => !activeUser.friends.includes(u.id));
+
+            // Apply filter text if present
+            const filteredFriends = friendsList.filter(u => 
+                u.name.toLowerCase().includes(filterText) || u.email.toLowerCase().includes(filterText)
+            );
+            const filteredSuggestions = suggestionsList.filter(u => 
+                u.name.toLowerCase().includes(filterText) || u.email.toLowerCase().includes(filterText)
+            );
+
+            // 1. RENDER "MY FRIENDS" SECTION
+            let friendsHtml = `
+                <div class="px-4 py-1.5 flex items-center justify-between">
+                    <span class="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider" data-key="my-friends-header">${localizations[currentLanguage]['my-friends-header']}</span>
+                    <span class="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">${filteredFriends.length}</span>
+                </div>
+                <div class="space-y-1 bg-white dark:bg-zinc-900 border-y border-zinc-100 dark:border-zinc-800/60 divide-y divide-zinc-50 dark:divide-zinc-800/30">
+            `;
+
+            if (filteredFriends.length === 0) {
+                friendsHtml += `
+                    <div class="p-6 text-center text-zinc-400">
+                        <i class="fa-regular fa-face-meh text-3xl mb-2 opacity-50"></i>
+                        <p class="text-[11px]" data-key="no-friends-yet">${localizations[currentLanguage]['no-friends-yet']}</p>
                     </div>
                 `;
-                container.insertAdjacentHTML('beforeend', html);
-            });
+            } else {
+                filteredFriends.forEach(user => {
+                    friendsHtml += `
+                        <div class="flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
+                            <div onclick="startChatWithFriend('${user.id}')" class="flex items-center gap-3 flex-1 cursor-pointer">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-sm relative">
+                                    ${user.name.charAt(0)}
+                                    <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-zinc-900 rounded-full"></span>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-xs text-zinc-900 dark:text-white leading-tight">${user.name}</h4>
+                                    <p class="text-[10px] text-zinc-400">${user.email}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <button onclick="startChatWithFriend('${user.id}')" class="px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold text-[10px] transition active:scale-95">
+                                    <i class="fa-solid fa-message"></i>
+                                </button>
+                                <button onclick="handleRemoveFriend('${user.id}', event)" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 font-bold text-[10px] transition active:scale-95" title="إزالة من الأصدقاء">
+                                    <i class="fa-solid fa-user-minus"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            friendsHtml += `</div>`;
+            container.insertAdjacentHTML('beforeend', friendsHtml);
+
+            // 2. RENDER "SUGGESTIONS" SECTION
+            let suggestionsHtml = `
+                <div class="px-4 py-1.5 flex items-center justify-between mt-4">
+                    <span class="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider" data-key="suggestions-header">${localizations[currentLanguage]['suggestions-header']}</span>
+                    <span class="text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">${filteredSuggestions.length}</span>
+                </div>
+                <div class="space-y-1 bg-white dark:bg-zinc-900 border-y border-zinc-100 dark:border-zinc-800/60 divide-y divide-zinc-50 dark:divide-zinc-800/30">
+            `;
+
+            if (filteredSuggestions.length === 0) {
+                suggestionsHtml += `
+                    <div class="p-6 text-center text-zinc-400">
+                        <i class="fa-regular fa-sparkles text-2xl mb-2 opacity-50"></i>
+                        <p class="text-[11px]" data-key="no-suggestions">${localizations[currentLanguage]['no-suggestions']}</p>
+                    </div>
+                `;
+            } else {
+                filteredSuggestions.forEach(user => {
+                    suggestionsHtml += `
+                        <div class="flex items-center justify-between p-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition">
+                            <div class="flex items-center gap-3 flex-1">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                    ${user.name.charAt(0)}
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-xs text-zinc-900 dark:text-white leading-tight">${user.name}</h4>
+                                    <p class="text-[10px] text-zinc-400">${user.email}</p>
+                                </div>
+                            </div>
+                            <button onclick="handleAddFriend('${user.id}')" class="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 font-bold text-[10px] transition active:scale-95 flex items-center gap-1">
+                                <i class="fa-solid fa-user-plus text-[9px]"></i>
+                                <span>${currentLanguage === 'ar' ? 'إضافة' : 'Add'}</span>
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+            suggestionsHtml += `</div>`;
+            container.insertAdjacentHTML('beforeend', suggestionsHtml);
+        }
+
+        function handleAddFriend(friendId) {
+            if (!activeUser.friends) {
+                activeUser.friends = [];
+            }
+            if (!activeUser.friends.includes(friendId)) {
+                activeUser.friends.push(friendId);
+                localStorage.setItem('active_user', JSON.stringify(activeUser));
+                
+                // Sync user to cloud database if online
+                if (isFirebaseConnected && firebaseDb) {
+                    firebaseDb.ref('users/' + activeUser.id).set(activeUser);
+                }
+                
+                playAudioFeedback();
+            }
+            renderFriendsScreen();
+        }
+
+        function handleRemoveFriend(friendId, event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            if (!activeUser.friends) return;
+            
+            const msg = currentLanguage === 'ar' ? 'هل تريد إزالة هذا المستخدم من أصدقائك؟' : 'Are you sure you want to remove this friend?';
+            if (confirm(msg)) {
+                activeUser.friends = activeUser.friends.filter(id => id !== friendId);
+                localStorage.setItem('active_user', JSON.stringify(activeUser));
+                
+                // Sync user to cloud database if online
+                if (isFirebaseConnected && firebaseDb) {
+                    firebaseDb.ref('users/' + activeUser.id).set(activeUser);
+                }
+            }
+            renderFriendsScreen();
+        }
+
+        function handleQuickAddFriend() {
+            const input = document.getElementById('friend-search-input');
+            const val = input.value.trim();
+            if (!val) return;
+
+            // Check if there is an existing user in mockUsers with this email or name
+            let matchedUser = mockUsers.find(u => 
+                u.email.toLowerCase() === val.toLowerCase() || 
+                u.name.toLowerCase() === val.toLowerCase()
+            );
+
+            if (matchedUser) {
+                if (matchedUser.id === activeUser.id) {
+                    alert(currentLanguage === 'ar' ? "لا يمكنك إضافة نفسك كصديق!" : "You cannot add yourself as a friend!");
+                    return;
+                }
+                
+                if (activeUser.friends && activeUser.friends.includes(matchedUser.id)) {
+                    alert(currentLanguage === 'ar' ? "هذا المستخدم صديقك بالفعل!" : "This user is already your friend!");
+                    return;
+                }
+                
+                handleAddFriend(matchedUser.id);
+                input.value = '';
+                alert(currentLanguage === 'ar' ? `تم إضافة ${matchedUser.name} كصديق بنجاح! 🎉` : `Added ${matchedUser.name} as friend! 🎉`);
+            } else {
+                // Create profile dynamically to make it work real
+                const isEmail = val.includes('@');
+                const name = isEmail ? val.split('@')[0] : val;
+                const email = isEmail ? val : `${val.replace(/\s+/g, '').toLowerCase()}@example.com`;
+                
+                const confirmMsg = currentLanguage === 'ar' 
+                    ? `المستخدم غير موجود. هل تود إنشاء حساب له وإضافته كصديق فورياً؟`
+                    : `User not found. Would you like to create their profile and add them as a friend instantly?`;
+                
+                if (confirm(confirmMsg)) {
+                    const newFriendId = 'usr_' + Date.now();
+                    const newFriend = {
+                        id: newFriendId,
+                        name: name,
+                        email: email,
+                        avatar: 'avatar' + (Math.floor(Math.random() * 4) + 1)
+                    };
+                    
+                    mockUsers.push(newFriend);
+                    
+                    // Sync user to cloud database if online
+                    if (isFirebaseConnected && firebaseDb) {
+                        firebaseDb.ref('users/' + newFriendId).set(newFriend);
+                    }
+                    
+                    handleAddFriend(newFriendId);
+                    input.value = '';
+                    alert(currentLanguage === 'ar' ? `تم إنشاء حساب ${name} وإضافته كصديق! 🎉` : `Created profile for ${name} and added as friend! 🎉`);
+                }
+            }
+        }
+
+        function filterFriendsList() {
+            renderFriendsScreen();
         }
 
         function startChatWithFriend(friendId) {
