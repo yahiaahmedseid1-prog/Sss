@@ -70,6 +70,10 @@
             from { opacity: 0; transform: scale(0.98); }
             to { opacity: 1; transform: scale(1); }
         }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
         /* Glassmorphism utility */
         .glass {
             background: rgba(255, 255, 255, 0.85);
@@ -459,6 +463,17 @@
             </div>
         </div>
 
+        <!-- ==================== REACTION POPUP MENU ==================== -->
+        <div id="reaction-menu-backdrop" class="hidden absolute inset-0 bg-transparent z-40" onclick="closeReactionMenu()"></div>
+        <div id="reaction-popup-menu" class="hidden absolute bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full py-2 px-4 shadow-xl z-50 flex items-center gap-3 animate-[zoomIn_0.15s_ease-out] select-none">
+            <button onclick="applyReaction('👍')" class="text-2xl hover:scale-125 transition active:scale-90 duration-150">👍</button>
+            <button onclick="applyReaction('❤️')" class="text-2xl hover:scale-125 transition active:scale-90 duration-150">❤️</button>
+            <button onclick="applyReaction('😂')" class="text-2xl hover:scale-125 transition active:scale-90 duration-150">😂</button>
+            <button onclick="applyReaction('😮')" class="text-2xl hover:scale-125 transition active:scale-90 duration-150">😮</button>
+            <button onclick="applyReaction('😢')" class="text-2xl hover:scale-125 transition active:scale-90 duration-150">😢</button>
+            <button onclick="applyReaction('🙏')" class="text-2xl hover:scale-125 transition active:scale-90 duration-150">🙏</button>
+        </div>
+
     </div>
 
     <!-- ==================== AUDIO FEEDBACK (MOCK/SOUNDS) ==================== -->
@@ -680,14 +695,26 @@
         }
 
         // Setup Firebase dynamically based on Local Storage Config
+        const defaultFirebaseConfig = {
+            apiKey: "AIzaSyD3q22qKvq-B-KCnDmC0VjAOtVUf1lEWDE",
+            authDomain: "yhchat-28b00.firebaseapp.com",
+            databaseURL: "https://yhchat-28b00-default-rtdb.firebaseio.com",
+            projectId: "yhchat-28b00",
+            storageBucket: "yhchat-28b00.firebasestorage.app",
+            messagingSenderId: "103585895934",
+            appId: "1:103585895934:web:6b7b40a8b29ef0496e1caf",
+            measurementId: "G-8G2703Z7KP"
+        };
+
         function setupFirebase() {
-            const configStr = localStorage.getItem('firebase_config');
+            let configStr = localStorage.getItem('firebase_config');
             const statusBadge = document.getElementById('firebase-status-badge');
             const settingsStatus = document.getElementById('firebase-indicator-setting');
             
+            // Set the provided Firebase project credentials as default if not already configured
             if (!configStr) {
-                setLocalStatus();
-                return;
+                configStr = JSON.stringify(defaultFirebaseConfig);
+                localStorage.setItem('firebase_config', configStr);
             }
 
             try {
@@ -1056,15 +1083,39 @@
                     ? `<span class="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 mb-0.5 px-2">${msg.senderName}</span>` 
                     : ``;
 
+                // Render reactions list if any exist
+                let reactionsHtml = "";
+                if (msg.reactions && Object.keys(msg.reactions).length > 0) {
+                    reactionsHtml = `<div class="absolute -bottom-2.5 ${isOutgoing ? 'left-2' : 'right-2'} flex flex-wrap gap-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full px-1.5 py-0.5 shadow-sm text-[10px] select-none z-10">`;
+                    Object.keys(msg.reactions).forEach(emoji => {
+                        const usersObj = msg.reactions[emoji];
+                        if (usersObj) {
+                            const count = Object.keys(usersObj).length;
+                            if (count > 0) {
+                                const tooltipText = Object.values(usersObj).join(', ');
+                                reactionsHtml += `<span class="cursor-help flex items-center gap-0.5" title="${tooltipText}">${emoji}<span class="text-[8px] text-zinc-500 dark:text-zinc-400 font-bold">${count}</span></span>`;
+                            }
+                        }
+                    });
+                    reactionsHtml += `</div>`;
+                }
+
                 const msgHtml = `
-                    <div class="flex flex-col max-w-[80%] ${alignmentClass} group relative">
+                    <div class="flex flex-col max-w-[80%] ${alignmentClass} group relative mb-3">
                         ${senderHeaderHtml}
-                        <div class="p-3.5 text-xs font-medium leading-relaxed ${bubbleClass}">
+                        <div class="p-3.5 text-xs font-medium leading-relaxed ${bubbleClass} relative cursor-pointer select-none"
+                             oncontextmenu="handleBubbleContextMenu(event, '${msg.id}', this)"
+                             ontouchstart="handleBubbleTouchStart(event, '${msg.id}', this)"
+                             ontouchend="handleBubbleTouchEnd(event)"
+                             onmousedown="handleBubbleMouseDown(event, '${msg.id}', this)"
+                             onmouseup="handleBubbleMouseUp(event)"
+                             onmouseleave="handleBubbleMouseLeave(event)">
                             <p class="whitespace-pre-wrap select-text">${msg.text}</p>
                             <div class="flex justify-between items-center gap-2 mt-1 text-[9px] opacity-75">
                                 <span>${timeStr}</span>
                                 ${isOutgoing ? '<i class="fa-solid fa-check-double text-[9px]"></i>' : ''}
                             </div>
+                            ${reactionsHtml}
                         </div>
                     </div>
                 `;
@@ -1167,6 +1218,149 @@
         function toggleEmojiPicker() {
             const tray = document.getElementById('quick-emoji-tray');
             tray.classList.toggle('hidden');
+        }
+
+        // --- Gesture & Reactions Logic ---
+        let bubbleTouchTimeout = null;
+        let isLongPressActive = false;
+
+        function handleBubbleContextMenu(event, msgId, element) {
+            event.preventDefault();
+            event.stopPropagation();
+            showReactionMenu(element, msgId);
+        }
+
+        function handleBubbleTouchStart(event, msgId, element) {
+            isLongPressActive = false;
+            if (bubbleTouchTimeout) clearTimeout(bubbleTouchTimeout);
+            bubbleTouchTimeout = setTimeout(() => {
+                isLongPressActive = true;
+                showReactionMenu(element, msgId);
+            }, 500);
+        }
+
+        function handleBubbleTouchEnd(event) {
+            if (bubbleTouchTimeout) clearTimeout(bubbleTouchTimeout);
+            if (isLongPressActive) {
+                event.preventDefault();
+            }
+        }
+
+        function handleBubbleMouseDown(event, msgId, element) {
+            if (event.button !== 0) return; // Only left click
+            isLongPressActive = false;
+            if (bubbleTouchTimeout) clearTimeout(bubbleTouchTimeout);
+            bubbleTouchTimeout = setTimeout(() => {
+                isLongPressActive = true;
+                showReactionMenu(element, msgId);
+            }, 500);
+        }
+
+        function handleBubbleMouseUp(event) {
+            if (bubbleTouchTimeout) clearTimeout(bubbleTouchTimeout);
+            if (isLongPressActive) {
+                event.preventDefault();
+            }
+        }
+
+        function handleBubbleMouseLeave(event) {
+            if (bubbleTouchTimeout) clearTimeout(bubbleTouchTimeout);
+        }
+
+        function showReactionMenu(element, msgId) {
+            const menu = document.getElementById('reaction-popup-menu');
+            const backdrop = document.getElementById('reaction-menu-backdrop');
+            const appContainer = document.getElementById('app-container');
+            
+            menu.dataset.msgId = msgId;
+            
+            const rect = element.getBoundingClientRect();
+            const appRect = appContainer.getBoundingClientRect();
+            
+            let top = rect.top - appRect.top - 50; 
+            let left = rect.left - appRect.left + (rect.width / 2) - 110; 
+            
+            if (left < 10) left = 10;
+            if (left + 220 > appRect.width) {
+                left = appRect.width - 230;
+            }
+            if (top < 10) {
+                top = rect.bottom - appRect.top + 10;
+            }
+            
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+            
+            menu.classList.remove('hidden');
+            backdrop.classList.remove('hidden');
+            
+            menu.classList.remove('animate-[zoomIn_0.15s_ease-out]');
+            void menu.offsetWidth; 
+            menu.classList.add('animate-[zoomIn_0.15s_ease-out]');
+        }
+
+        function closeReactionMenu() {
+            document.getElementById('reaction-popup-menu').classList.add('hidden');
+            document.getElementById('reaction-menu-backdrop').classList.add('hidden');
+        }
+
+        function applyReaction(emoji) {
+            const menu = document.getElementById('reaction-popup-menu');
+            const msgId = menu.dataset.msgId;
+            closeReactionMenu();
+            
+            if (!msgId) return;
+            
+            const msg = mockMessages.find(m => m.id === msgId);
+            if (!msg) return;
+            
+            if (!msg.reactions) {
+                msg.reactions = {};
+            }
+            
+            if (!msg.reactions[emoji]) {
+                msg.reactions[emoji] = {};
+            }
+            
+            const userId = activeUser.id;
+            const userName = activeUser.name;
+            
+            if (msg.reactions[emoji][userId]) {
+                delete msg.reactions[emoji][userId];
+                if (Object.keys(msg.reactions[emoji]).length === 0) {
+                    delete msg.reactions[emoji];
+                }
+            } else {
+                Object.keys(msg.reactions).forEach(e => {
+                    if (msg.reactions[e] && msg.reactions[e][userId]) {
+                        delete msg.reactions[e][userId];
+                        if (Object.keys(msg.reactions[e]).length === 0) {
+                            delete msg.reactions[e];
+                        }
+                    }
+                });
+                
+                if (!msg.reactions[emoji]) {
+                    msg.reactions[emoji] = {};
+                }
+                msg.reactions[emoji][userId] = userName;
+            }
+            
+            if (isFirebaseConnected && firebaseDb) {
+                if (msg._fbKey) {
+                    firebaseDb.ref(`messages/${activeChatId}/${msg._fbKey}/reactions`).set(msg.reactions || null);
+                } else {
+                    firebaseDb.ref(`messages/${activeChatId}`).orderByChild('id').equalTo(msg.id).once('value', snapshot => {
+                        if (snapshot.exists()) {
+                            snapshot.forEach(child => {
+                                child.ref.child('reactions').set(msg.reactions || null);
+                            });
+                        }
+                    });
+                }
+            } else {
+                renderMessages();
+            }
         }
 
         function playAudioFeedback() {
@@ -1373,23 +1567,36 @@
                     Object.keys(data).forEach(chatId => {
                         const chatRoomMsgs = data[chatId];
                         Object.keys(chatRoomMsgs).forEach(msgKey => {
-                            allCloudMsgs.push(chatRoomMsgs[msgKey]);
+                            allCloudMsgs.push({
+                                _fbKey: msgKey,
+                                ...chatRoomMsgs[msgKey]
+                            });
                         });
                     });
 
-                    // Update local message list store without duplicate entries
+                    // Update local message list store with latest cloud data
+                    let hasNewMessage = false;
                     allCloudMsgs.forEach(cMsg => {
-                        if (!mockMessages.find(m => m.id === cMsg.id)) {
+                        const existingIdx = mockMessages.findIndex(m => m.id === cMsg.id);
+                        if (existingIdx === -1) {
                             mockMessages.push(cMsg);
-                            playAudioFeedback();
+                            hasNewMessage = true;
+                            if (cMsg.senderId !== activeUser.id) {
+                                playAudioFeedback();
+                            }
+                        } else {
+                            // Update existing message fields (such as reactions)
+                            mockMessages[existingIdx] = { ...mockMessages[existingIdx], ...cMsg };
                         }
                     });
 
                     if (activeChatId && document.getElementById('screen-chat-room').classList.contains('active')) {
                         renderMessages();
-                        // Scroll to bottom
-                        const stream = document.getElementById('message-stream-container');
-                        if (stream) stream.scrollTop = stream.scrollHeight;
+                        if (hasNewMessage) {
+                            // Scroll to bottom only when new message is loaded
+                            const stream = document.getElementById('message-stream-container');
+                            if (stream) stream.scrollTop = stream.scrollHeight;
+                        }
                     }
                     
                     if (document.getElementById('screen-chats').classList.contains('active')) {
