@@ -1,0 +1,6 @@
+{
+  "name": "Messenger",
+  "description": "Messenger clone with complete chatting capabilities, local data persistence, group management, and user profiles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

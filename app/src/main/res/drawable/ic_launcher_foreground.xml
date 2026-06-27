@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Centered white Messenger-style speech bubble -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26C37.4,26 24,37.6 24,52C24,60 28.5,67 36,71.5C35.5,74.5 33.5,81 32.5,84C32,85.5 34,86 35.5,85C40,81 45.5,77 48.5,76C50.3,76.7 52.1,77 54,77C70.6,77 84,65.4 84,52C84,37.6 70.6,26 54,26Z" />
+    <!-- Centered Messenger Blue lightning bolt inside bubble -->
+    <path
+        android:fillColor="#1877F2"
+        android:pathData="M38,50 L45,63 L55,54 L64,63 L57,50 L47,59 Z" />
+</vector>
